@@ -16,8 +16,14 @@ type Context struct {
 	// 请求信息
 	Path   string
 	Method string
+	Params map[string]string
 	// 响应信息
 	StatusCode int
+}
+
+func (c *Context) Param(key string) string {
+	value, _ := c.Params[key]
+	return value
 }
 
 // newContext 创建一个新的 Context 实例
