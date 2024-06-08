@@ -19,11 +19,9 @@ type Context struct {
 	Params map[string]string
 	// 响应信息
 	StatusCode int
-}
-
-func (c *Context) Param(key string) string {
-	value, _ := c.Params[key]
-	return value
+	// 中间件
+	handlers []HandlerFunc // 中间件处理函数的切片
+	index    int           // 当前处理的中间件索引
 }
 
 // newContext 创建一个新的 Context 实例
@@ -33,7 +31,30 @@ func newContext(w http.ResponseWriter, r *http.Request) *Context {
 		Req:    r,
 		Path:   r.URL.Path,
 		Method: r.Method,
+		index:  -1, // 初始化中间件索引为 -1，表示尚未开始处理中间件
 	}
+}
+
+func (c *Context) Next() {
+	c.index++            // 将中间件索引向前移动到下一个中间件
+	s := len(c.handlers) // 获取中间件切片的长度
+	for ; c.index < s; c.index++ {
+		// 调用当前索引处的中间件处理函数
+		// 当 c.index < s 时循环调用中间件，直到所有中间件都执行完毕
+		c.handlers[c.index](c)
+	}
+}
+
+func (c *Context) Fail(code int, err string) {
+	// 将 c.index 设置为 len(c.handlers)，这表示已经执行完所有中间件和处理器
+	// 这样做可以确保 Next() 方法在被调用时不会尝试执行任何后续的处理函数
+	c.index = len(c.handlers)
+	c.JSON(code, H{"message": err})
+}
+
+func (c *Context) Param(key string) string {
+	value, _ := c.Params[key]
+	return value
 }
 
 // PostForm 返回指定 key 的表单值
