@@ -22,6 +22,7 @@ type Context struct {
 	// 中间件
 	handlers []HandlerFunc // 中间件处理函数的切片
 	index    int           // 当前处理的中间件索引
+	engine   *Engine       // engine pointer 引擎指针，指向关联的 Engine 实例
 }
 
 // newContext 创建一个新的 Context 实例
@@ -102,8 +103,14 @@ func (c *Context) Data(code int, data []byte) {
 }
 
 // HTML 以 HTML 格式发送响应
-func (c *Context) HTML(code int, html string) {
+func (c *Context) HTML(code int, name string, data interface{}) {
 	c.SetHeader("Content-Type", "text/html")
 	c.Status(code)
-	c.Writer.Write([]byte(html))
+	// 尝试执行名称为 name 的模板，并将 data 传递给模板作为数据
+	// 如果 Engine 的 htmlTemplates 没有被加载，则这个方法会失败
+	if err := c.engine.htmlTemplates.ExecuteTemplate(c.Writer, name, data); err != nil {
+		// 如果模板执行过程中出现错误，调用 Fail 方法返回一个 500 状态码
+		// 并将错误信息作为响应体发送给客户端
+		c.Fail(500, err.Error())
+	}
 }
